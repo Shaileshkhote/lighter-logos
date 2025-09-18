@@ -1,0 +1,26 @@
+{
+  "name": "lighter-logo-scrapper",
+  "version": "1.0.0",
+  "description": "A logo scraper for Hyperliquid trading symbols that downloads SVG logos from hyperliquid.xyz",
+  "main": "logoScraper.js",
+  "scripts": {
+    "start": "node logoScraper.js",
+    "download-all": "node logoScraper.js",
+    "download": "node logoScraper.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "hyperliquid",
+    "logo",
+    "scraper",
+    "svg",
+    "crypto",
+    "trading"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.12.2"
+  }
+}
