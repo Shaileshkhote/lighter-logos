@@ -425,6 +425,9 @@ const marketData = {
   ]
 };
 
+// API endpoint for market data
+const MARKET_DATA_API = 'https://mainnet.zklighter.elliot.ai/api/v1/orderBookDetails';
+
 // Base URL for logos
 const BASE_URL = 'https://app.hyperliquid.xyz/coins';
 
@@ -434,6 +437,52 @@ function cleanSymbol(symbol) {
         return symbol.substring(4);
     }
     return symbol;
+}
+
+// Function to fetch market data from API
+async function fetchMarketData() {
+    try {
+        console.log('Fetching market data from API...');
+        const response = await axios({
+            method: 'GET',
+            url: MARKET_DATA_API,
+            headers: {
+                'accept': 'application/json'
+            },
+            timeout: 15000 // 15 second timeout
+        });
+
+        if (response.data && response.data.order_book_details) {
+            console.log(`✅ Successfully fetched ${response.data.order_book_details.length} market entries`);
+            return response.data;
+        } else {
+            throw new Error('Invalid response structure from API');
+        }
+    } catch (error) {
+        console.error('❌ Failed to fetch market data from API:', error.message);
+        console.log('📋 Using fallback hardcoded market data...');
+        return marketData; // Fallback to hardcoded data
+    }
+}
+
+// Function to get already downloaded logos
+function getExistingLogos(logosDir) {
+    try {
+        if (!fs.existsSync(logosDir)) {
+            return [];
+        }
+        
+        const files = fs.readdirSync(logosDir);
+        const existingLogos = files
+            .filter(file => file.endsWith('.svg'))
+            .map(file => file.replace('.svg', ''));
+        
+        console.log(`📁 Found ${existingLogos.length} existing logos`);
+        return existingLogos;
+    } catch (error) {
+        console.error('❌ Error reading existing logos:', error.message);
+        return [];
+    }
 }
 
 // Function to create logos directory if it doesn't exist
@@ -486,25 +535,46 @@ async function downloadLogo(symbol, logosDir) {
 // Function to download all logos with rate limiting
 async function downloadAllLogos() {
     const logosDir = ensureLogosDirectory();
-    const activeSymbols = marketData.order_book_details
+    
+    // Fetch market data dynamically from API
+    const dynamicMarketData = await fetchMarketData();
+    
+    // Get all active symbols
+    const allActiveSymbols = dynamicMarketData.order_book_details
         .filter(item => item.status === 'active')
         .map(item => item.symbol);
-
-    console.log(`Starting download of ${activeSymbols.length} logos...`);
+    
+    // Get existing logos to filter out
+    const existingLogos = getExistingLogos(logosDir);
+    
+    // Filter out symbols that already have logos downloaded
+    const symbolsToDownload = allActiveSymbols.filter(symbol => !existingLogos.includes(symbol));
+    
+    console.log(`Total active symbols: ${allActiveSymbols.length}`);
+    console.log(`Already downloaded: ${existingLogos.length}`);
+    console.log(`New logos to download: ${symbolsToDownload.length}`);
+    
+    if (symbolsToDownload.length === 0) {
+        console.log('🎉 All logos are already downloaded!');
+        return;
+    }
+    
+    console.log(`Starting download of ${symbolsToDownload.length} new logos...`);
     console.log('==================================================');
 
     let successful = 0;
     let failed = 0;
 
-    for (let i = 0; i < activeSymbols.length; i++) {
-        const symbol = activeSymbols[i];
+    for (let i = 0; i < symbolsToDownload.length; i++) {
+        const symbol = symbolsToDownload[i];
         
         try {
+          console.log(symbol);
             await downloadLogo(symbol, logosDir);
             successful++;
             
             // Add small delay to be respectful to the server
-            if (i < activeSymbols.length - 1) {
+            if (i < symbolsToDownload.length - 1) {
                 await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay
             }
         } catch (error) {
@@ -570,5 +640,7 @@ if (require.main === module) {
 module.exports = {
     downloadAllLogos,
     downloadSpecificLogos,
-    cleanSymbol
+    cleanSymbol,
+    fetchMarketData,
+    getExistingLogos
 };
